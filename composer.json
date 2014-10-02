@@ -1,0 +1,17 @@
+{
+	"name": "gears/di",
+	"description": "The gears dependency injection container.",
+	"homepage": "https://github.com/phpgearbox/di",
+	"keywords": ["dependency", "injection", "container", "di", "ioc"],
+	"license": "MIT",
+	"autoload":
+	{
+		"psr-4": { "Gears\\Di\\": "src" }
+	},
+	"require-dev":
+	{
+		"phpunit/phpunit": "4.*",
+		"codegyre/robo": "*",
+		"mockery/mockery": "*"
+	}
+}
