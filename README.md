@@ -10,7 +10,8 @@ Its been around for ages in other enterprise enviroments like Java, .Net, etc.
 But it's sort of new to the PHP world.
 
 Most will understand the general concept but if not check out:
-http://www.phptherightway.com/#dependency_injection
+
+  - http://www.phptherightway.com/#dependency_injection
 
 How to Install
 --------------------------------------------------------------------------------
@@ -20,7 +21,7 @@ Installation via composer is easy:
 
 How to Use
 --------------------------------------------------------------------------------
-Firstly this container is like *[!Pimple](http://pimple.sensiolabs.org/)*
+Firstly this container is like *[Pimple](http://pimple.sensiolabs.org/)*
 but it is not *Pimple*. There are some unique differences so pay attention.
 
 **Basic example:**
