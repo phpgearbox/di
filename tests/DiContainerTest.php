@@ -47,15 +47,11 @@ class DiContainerTest extends PHPUnit_Framework_TestCase
 		$this->assertNotSame($serviceOne, $serviceTwo);
 	}
 
-	/*public function testShouldPassContainerAsParameter()
+	public function testShouldPassContainerAsParameter()
 	{
 		$c = new Container();
-		$c['service'] = function () {
-			return new Fixtures\Service();
-		};
-		$c['container'] = function ($container) {
-			return $container;
-		};
+		$c['service'] = function () { return m::mock('foo'); };
+		$c['container'] = function () { return $this; };
 
 		$this->assertNotSame($c, $c['service']);
 		$this->assertSame($c, $c['container']);
@@ -65,10 +61,7 @@ class DiContainerTest extends PHPUnit_Framework_TestCase
 	{
 		$c = new Container();
 		$c['param'] = 'value';
-		$c['service'] = function () {
-			return new Fixtures\Service();
-		};
-
+		$c['service'] = function () { return m::mock('foo'); };
 		$c['null'] = null;
 
 		$this->assertTrue(isset($c['param']));
@@ -86,9 +79,9 @@ class DiContainerTest extends PHPUnit_Framework_TestCase
 	}
 
 	/**
-	 * @expectedException \InvalidArgumentException
-	 * @expectedExceptionMessage Identifier "foo" is not defined.
-	 *
+	 * @expectedException \RuntimeException
+	 * @expectedExceptionMessage Container does not contain: foo
+	 */
 	public function testOffsetGetValidatesKeyIsPresent()
 	{
 		$c = new Container();
@@ -102,45 +95,41 @@ class DiContainerTest extends PHPUnit_Framework_TestCase
 		$this->assertNull($c['foo']);
 	}
 
+	/**
+	 * @expectedException \RuntimeException
+	 * @expectedExceptionMessage You can not unset a dependency!
+	 */
 	public function testUnset()
 	{
 		$c = new Container();
 		$c['param'] = 'value';
-		$c['service'] = function () {
-			return new Fixtures\Service();
-		};
-
-		unset($c['param'], $c['service']);
-		$this->assertFalse(isset($c['param']));
-		$this->assertFalse(isset($c['service']));
+		unset($c['param']);
 	}
 
-	/**
-	 * @dataProvider serviceDefinitionProvider
-	 *
-	public function testShare($service)
+	public function testShare()
 	{
 		$c = new Container();
-		$c['shared_service'] = $service;
+		$c['shared_service'] = function () { return m::mock('foo'); };
 
 		$serviceOne = $c['shared_service'];
-		$this->assertInstanceOf('Pimple\Tests\Fixtures\Service', $serviceOne);
+		$this->assertInstanceOf('foo', $serviceOne);
 
 		$serviceTwo = $c['shared_service'];
-		$this->assertInstanceOf('Pimple\Tests\Fixtures\Service', $serviceTwo);
+		$this->assertInstanceOf('foo', $serviceTwo);
 
 		$this->assertSame($serviceOne, $serviceTwo);
 	}
 
-	/**
-	 * @dataProvider serviceDefinitionProvider
-	 *
-	public function testProtect($service)
+	public function testProtect()
 	{
 		$c = new Container();
-		$c['protected'] = $c->protect($service);
+		$service1 = function () { return m::mock('foo'); };
+		$service2 = function () { return m::mock('bar'); };
+		$c['unprotected'] = $service1;
+		$c['protected'] = $c->protect($service2);
 
-		$this->assertSame($service, $c['protected']);
+		$this->assertNotSame($service1, $c['unprotected']);
+		$this->assertSame($service2, $c['protected']);
 	}
 
 	public function testGlobalFunctionNameAsParameterValue()
@@ -150,276 +139,191 @@ class DiContainerTest extends PHPUnit_Framework_TestCase
 		$this->assertSame('strlen', $c['global_function']);
 	}
 
-	public function testRaw()
-	{
-		$c = new Container();
-		$c['service'] = $definition = $c->factory(function () { return 'foo'; });
-		$this->assertSame($definition, $c->raw('service'));
-	}
-
-	public function testRawHonorsNullValues()
-	{
-		$c = new Container();
-		$c['foo'] = null;
-		$this->assertNull($c->raw('foo'));
-	}
-
 	public function testFluentRegister()
 	{
 		$c = new Container;
-		$this->assertSame($c, $c->register($this->getMock('Pimple\ServiceProviderInterface')));
+		$this->assertSame($c, $c->register($this->getMock('Gears\Di\ServiceProviderInterface')));
 	}
 
 	/**
-	 * @expectedException \InvalidArgumentException
-	 * @expectedExceptionMessage Identifier "foo" is not defined.
-	 *
-	public function testRawValidatesKeyIsPresent()
+	 * @expectedException PHPUnit_Framework_Error
+	 */
+	public function testFactoryFailsForInvalidServiceDefinitions()
 	{
 		$c = new Container();
-		$c->raw('foo');
+		$c->factory('foo');
 	}
 
 	/**
-	 * @dataProvider serviceDefinitionProvider
-	 *
-	public function testExtend($service)
-	{
-		$c = new Container();
-		$c['shared_service'] = function () {
-			return new Fixtures\Service();
-		};
-		$c['factory_service'] = $c->factory(function () {
-			return new Fixtures\Service();
-		});
-
-		$c->extend('shared_service', $service);
-		$serviceOne = $c['shared_service'];
-		$this->assertInstanceOf('Pimple\Tests\Fixtures\Service', $serviceOne);
-		$serviceTwo = $c['shared_service'];
-		$this->assertInstanceOf('Pimple\Tests\Fixtures\Service', $serviceTwo);
-		$this->assertSame($serviceOne, $serviceTwo);
-		$this->assertSame($serviceOne->value, $serviceTwo->value);
-
-		$c->extend('factory_service', $service);
-		$serviceOne = $c['factory_service'];
-		$this->assertInstanceOf('Pimple\Tests\Fixtures\Service', $serviceOne);
-		$serviceTwo = $c['factory_service'];
-		$this->assertInstanceOf('Pimple\Tests\Fixtures\Service', $serviceTwo);
-		$this->assertNotSame($serviceOne, $serviceTwo);
-		$this->assertNotSame($serviceOne->value, $serviceTwo->value);
-	}
-
-	public function testExtendDoesNotLeakWithFactories()
-	{
-		if (extension_loaded('pimple')) {
-			$this->markTestSkipped('Pimple extension does not support this test');
-		}
-		$c = new Container();
-
-		$c['foo'] = $c->factory(function () { return; });
-		$c['foo'] = $c->extend('foo', function ($foo, $c) { return; });
-		unset($c['foo']);
-
-		$p = new \ReflectionProperty($c, 'values');
-		$p->setAccessible(true);
-		$this->assertEmpty($p->getValue($c));
-
-		$p = new \ReflectionProperty($c, 'factories');
-		$p->setAccessible(true);
-		$this->assertCount(0, $p->getValue($c));
-	}
-
-	/**
-	 * @expectedException \InvalidArgumentException
-	 * @expectedExceptionMessage Identifier "foo" is not defined.
-	 *
-	public function testExtendValidatesKeyIsPresent()
-	{
-		$c = new Container();
-		$c->extend('foo', function () {});
-	}
-
-	public function testKeys()
-	{
-		$c = new Container();
-		$c['foo'] = 123;
-		$c['bar'] = 123;
-
-		$this->assertEquals(array('foo', 'bar'), $c->keys());
-	}
-
-	/** @test *
-	public function settingAnInvokableObjectShouldTreatItAsFactory()
-	{
-		$c = new Container();
-		$c['invokable'] = new Fixtures\Invokable();
-
-		$this->assertInstanceOf('Pimple\Tests\Fixtures\Service', $c['invokable']);
-	}
-
-	/** @test *
-	public function settingNonInvokableObjectShouldTreatItAsParameter()
-	{
-		$c = new Container();
-		$c['non_invokable'] = new Fixtures\NonInvokable();
-
-		$this->assertInstanceOf('Pimple\Tests\Fixtures\NonInvokable', $c['non_invokable']);
-	}
-
-	/**
-	 * @dataProvider badServiceDefinitionProvider
-	 * @expectedException \InvalidArgumentException
-	 * @expectedExceptionMessage Service definition is not a Closure or invokable object.
-	 *
-	public function testFactoryFailsForInvalidServiceDefinitions($service)
-	{
-		$c = new Container();
-		$c->factory($service);
-	}
-
-	/**
-	 * @dataProvider badServiceDefinitionProvider
-	 * @expectedException \InvalidArgumentException
-	 * @expectedExceptionMessage Callable is not a Closure or invokable object.
-	 *
+	 * @expectedException PHPUnit_Framework_Error
+	 */
 	public function testProtectFailsForInvalidServiceDefinitions($service)
 	{
 		$c = new Container();
-		$c->protect($service);
-	}
-
-	/**
-	 * @dataProvider badServiceDefinitionProvider
-	 * @expectedException \InvalidArgumentException
-	 * @expectedExceptionMessage Identifier "foo" does not contain an object definition.
-	 *
-	public function testExtendFailsForKeysNotContainingServiceDefinitions($service)
-	{
-		$c = new Container();
-		$c['foo'] = $service;
-		$c->extend('foo', function () {});
-	}
-
-	/**
-	 * @dataProvider badServiceDefinitionProvider
-	 * @expectedException \InvalidArgumentException
-	 * @expectedExceptionMessage Extension service definition is not a Closure or invokable object.
-	 *
-	public function testExtendFailsForInvalidServiceDefinitions($service)
-	{
-		$c = new Container();
-		$c['foo'] = function () {};
-		$c->extend('foo', $service);
-	}
-
-	/**
-	 * Provider for invalid service definitions
-	 *
-	public function badServiceDefinitionProvider()
-	{
-		return array(
-		  array(123),
-		  array(new Fixtures\NonInvokable())
-		);
-	}
-
-	/**
-	 * Provider for service definitions
-	 *
-	public function serviceDefinitionProvider()
-	{
-		return array(
-			array(function ($value) {
-				$service = new Fixtures\Service();
-				$service->value = $value;
-
-				return $service;
-			}),
-			array(new Fixtures\Invokable())
-		);
+		$c->protect('foo');
 	}
 
 	public function testDefiningNewServiceAfterFreeze()
 	{
 		$c = new Container();
-		$c['foo'] = function () {
-			return 'foo';
-		};
+		$c['foo'] = function () { return 'foo'; };
 		$foo = $c['foo'];
-
-		$c['bar'] = function () {
-			return 'bar';
-		};
+		$c['bar'] = function () { return 'bar'; };
 		$this->assertSame('bar', $c['bar']);
 	}
 
 	/**
 	 * @expectedException RuntimeException
-	 * @expectedExceptionMessage Cannot override frozen service "foo".
-	 *
+	 * @expectedExceptionMessage Cannot override frozen service: foo
+	 */
 	public function testOverridingServiceAfterFreeze()
 	{
 		$c = new Container();
-		$c['foo'] = function () {
-			return 'foo';
-		};
+		$c['foo'] = function () { return 'foo'; };
 		$foo = $c['foo'];
-
-		$c['foo'] = function () {
-			return 'bar';
-		};
+		$c['foo'] = function () { return 'bar'; };
 	}
 
-	public function testRemovingServiceAfterFreeze()
+	public function testObjectSyntax()
 	{
 		$c = new Container();
-		$c['foo'] = function () {
-			return 'foo';
-		};
-		$foo = $c['foo'];
+		$c->param = 'value';
+		$c->service = function () { return m::mock('foo'); };
 
-		unset($c['foo']);
-		$c['foo'] = function () {
-			return 'bar';
-		};
-		$this->assertSame('bar', $c['foo']);
+		$this->assertEquals('value', $c->param);
+		$this->assertInstanceOf('foo', $c->service);
 	}
 
-	public function testExtendingService()
+	public function testThisIsBound()
 	{
 		$c = new Container();
-		$c['foo'] = function () {
-			return 'foo';
-		};
-		$c['foo'] = $c->extend('foo', function ($foo, $app) {
-			return "$foo.bar";
-		});
-		$c['foo'] = $c->extend('foo', function ($foo, $app) {
-			return "$foo.baz";
-		});
-		$this->assertSame('foo.bar.baz', $c['foo']);
+		$c->param = 'value';
+		$c->service = function () { return m::mock($this->param); };
+
+		$this->assertInstanceOf('value', $c->service);
 	}
 
-	public function testExtendingServiceAfterOtherServiceFreeze()
+	/**
+	 * @expectedException RuntimeException
+	 * @expectedExceptionMessage Container does not contain: injectFoo
+	 */
+	public function testPrivateIsPrivate()
 	{
-		$c = new Container();
-		$c['foo'] = function () {
-			return 'foo';
-		};
-		$c['bar'] = function () {
-			return 'bar';
-		};
-		$foo = $c['foo'];
+		$c = new ExtendedContainer();
+		$c->service = function () { return m::mock($this->injectFoo); };
+		$c->service;
+	}
 
-		$c['bar'] = $c->extend('bar', function ($bar, $app) {
-			return "$bar.baz";
-		});
-		$this->assertSame('bar.baz', $c['bar']);
-	}*/
+	/**
+	 * @expectedException RuntimeException
+	 * @expectedExceptionMessage You cant touch my privates!!!
+	 */
+	public function testPrivateIsPrivateShortName()
+	{
+		$c = new ExtendedContainer();
+		$c->service = function () { return m::mock($this->foo); };
+		$c->service;
+	}
+
+	public function testProtectedNonInjectableGet()
+	{
+		$c = new ExtendedContainer();
+		$c->service = function () { return m::mock($this->bar); };
+
+		$this->assertInstanceOf('abc', $c->service);
+	}
+
+	/**
+	 * @expectedException RuntimeException
+	 * @expectedExceptionMessage Container does not contain: bar
+	 */
+	public function testProtectedNonInjectableGetFromOutside()
+	{
+		$c = new ExtendedContainer();
+		$c->bar;
+	}
+
+	public function testProtectedNonInjectableSet()
+	{
+		$c = new ExtendedContainer();
+		$c->service = function (){ $this->bar = 'xyz'; return m::mock($this->bar); };
+
+		$this->assertInstanceOf('xyz', $c->service);
+	}
+
+	
+	public function testProtectedNonInjectableSetFromOutside()
+	{
+		$c = new ExtendedContainer();
+		$c->bar = 'xyz';
+
+		$this->assertEquals('xyz', $c->injectBar);
+	}
+
+	public function testProtectedInjectable()
+	{
+		$c = new ExtendedContainer();
+		$c->service = function () { return m::mock($this->baz); };
+
+		$this->assertInstanceOf('baz', $c->service);
+		$this->assertEquals('baz', $c->baz);
+	}
+
+	public function testSetDefaults()
+	{
+		$c = new DefaultContainer();
+
+		$this->assertInstanceOf('FooService', $c->foo);
+		$this->assertInstanceOf('BarService', $c->bar);
+		$this->assertInstanceOf('FooService', $c->bar->test());
+		$this->assertInstanceOf('FooService', $c->test());
+
+		$c = new DefaultContainer();
+		$c->foo = function() { return m::mock('BazService'); };
+
+		$this->assertInstanceOf('BazService', $c->foo);
+		$this->assertInstanceOf('BarService', $c->bar);
+		$this->assertInstanceOf('BazService', $c->bar->test());
+		$this->assertInstanceOf('BazService', $c->test());
+
+		$c = new DefaultContainer(['foo' => function() { return m::mock('BazService'); }]);
+
+		$this->assertInstanceOf('BazService', $c->foo);
+		$this->assertInstanceOf('BarService', $c->bar);
+		$this->assertInstanceOf('BazService', $c->bar->test());
+		$this->assertInstanceOf('BazService', $c->test());
+	}
 
 	protected function tearDown()
 	{
 		m::close();
+	}
+}
+
+class ExtendedContainer extends Container
+{
+	private $injectFoo = '123';
+
+	protected $bar = 'abc';
+
+	protected $injectBaz = 'baz';
+}
+
+class DefaultContainer extends Container
+{
+	protected $injectFoo;
+
+	protected $injectBar;
+
+	protected function setDefaults()
+	{
+		$this->foo = function() { return m::mock('FooService'); };
+
+		$this->bar = function() { return m::mock('BarService', ['test' => $this->foo]); };
+	}
+
+	public function test()
+	{
+		return $this->foo;
 	}
 }
