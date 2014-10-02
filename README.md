@@ -20,7 +20,7 @@ Installation via composer is easy:
 
 How to Use
 --------------------------------------------------------------------------------
-Firstly this container is like *[![Pimple](http://pimple.sensiolabs.org/)*
+Firstly this container is like *[!Pimple](http://pimple.sensiolabs.org/)*
 but it is not *Pimple*. There are some unique differences so pay attention.
 
 **Basic example:**
