@@ -124,12 +124,12 @@ class DiContainerTest extends PHPUnit_Framework_TestCase
 	{
 		$c = new Container();
 		$service1 = function () { return m::mock('foo'); };
-		$service2 = function () { return m::mock('bar'); };
+		$service2 = function () { return m::mock('foo'); };
 		$c['unprotected'] = $service1;
 		$c['protected'] = $c->protect($service2);
 
-		$this->assertNotSame($service1, $c['unprotected']);
-		$this->assertSame($service2, $c['protected']);
+		$this->assertInstanceOf('foo', $c['unprotected']);
+		$this->assertInstanceOf('Closure', $c['protected']);
 	}
 
 	public function testGlobalFunctionNameAsParameterValue()

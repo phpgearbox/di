@@ -156,15 +156,14 @@ class Container implements ArrayAccess
 			$value = $this->reflector->getValue($this);
 
 			// If the value is a closure we need to resolve it.
-			if ($value instanceof Closure && !$this->protected->contains($value))
+			if ($value instanceof Closure)
 			{
 				// Rebind the closure to the container.
 				// This allows the closure to use the $this var.
 				$bound = Closure::bind($value, $this, '\Gears\Di\Container');
 
-				// If its not a factory we can resolve it and save it.
-				// Otherwise we just run the factory again.
-				if (!$this->factories->contains($value))
+				// If its not a factory and it's not protected we can resolve it
+				if (!$this->factories->contains($value) && !$this->protected->contains($value))
 				{
 					// Save the current reflector as calling
 					// the closure could be recursive.
@@ -180,10 +179,15 @@ class Container implements ArrayAccess
 					// changes as other services now depend on this.
 					$this->frozen[$offset] = true;
 				}
-				else
+				elseif ($this->factories->contains($value))
 				{
 					// Run the factory but don't save it's output
 					$output = $bound();
+				}
+				else
+				{
+					// It must be a protected closure
+					$output = $bound;
 				}
 			}
 			else
