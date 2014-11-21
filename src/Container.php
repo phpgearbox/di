@@ -303,6 +303,35 @@ class Container implements ArrayAccess
 	}
 
 	/**
+	 * Method: __call
+	 * =========================================================================
+	 * PHP Magic Method, provides object syntax to resolve protected services.
+	 * 
+	 * Parameters:
+	 * -------------------------------------------------------------------------
+	 *  - $name: The name of service to resolve out of the container.
+	 *  - $args: The arguments to pass to protected service.
+	 * 
+	 * Returns:
+	 * -------------------------------------------------------------------------
+	 * mixed
+	 */
+	public function __call($name, $args)
+	{
+		// Grab the service
+		$value = $this->offsetGet($name);
+
+		// If its a protected closure lets run it
+		if ($value instanceof Closure)
+		{
+			return call_user_func_array($value, $args);
+		}
+
+		// Otherwise we will just return the value
+		return $value;
+	}
+
+	/**
 	 * Method: factory
 	 * =========================================================================
 	 * By default the container will resolve a service and save a copy for
