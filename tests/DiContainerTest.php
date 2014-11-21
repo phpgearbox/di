@@ -132,6 +132,14 @@ class DiContainerTest extends PHPUnit_Framework_TestCase
 		$this->assertInstanceOf('Closure', $c['protected']);
 	}
 
+	public function testProtectObjectSyntax()
+	{
+		$c = new Container();
+		$c->service = $c->protect(function ($a, $b) { return $a + $b; });
+
+		$this->assertEquals(10, $c->service(5, 5));
+	}
+
 	public function testGlobalFunctionNameAsParameterValue()
 	{
 		$c = new Container();
